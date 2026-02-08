@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fixed Spectrum Mandala</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mandalaCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('mandalaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        let time = 0;
+
+        // --- Configuration ---
+        const config = {
+            layerCount: 10,        
+            petalsPerLayer: 12,   
+            baseSpeed: 0.002,     
+            rotationSpeed: 0.0005, 
+            maxPetalSize: 80,     
+            opacityMultiplier: 0.5, 
+            // colorSpeed is removed (no longer needed)
+            // colorDifference is removed (calculated automatically now)
+            maxRadiusRatio: 0.45, 
+            minRadiusRatio: 0.15, 
+        };
+
+        // Store rotation angles for conservation of momentum
+        const layerAngles = new Array(config.layerCount).fill(0);
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.globalCompositeOperation = 'lighter'; 
+
+            const screenMin = Math.min(width, height);
+            const maxRadius = screenMin * config.maxRadiusRatio;
+            const minRadius = maxRadius * config.minRadiusRatio;
+
+            for (let i = 0; i < config.layerCount; i++) {
+                
+                // 1. Movement Cycle
+                const offset = i / config.layerCount; 
+                let cycle = (time * config.baseSpeed + offset * 2) % 2;
+                
+                let expansionProgress; 
+                if (cycle < 1) {
+                    expansionProgress = cycle;
+                } else {
+                    expansionProgress = 2 - cycle;
+                }
+
+                // 2. Geometry
+                const currentRingRadius = minRadius + (expansionProgress * (maxRadius - minRadius));
+                const currentPetalSize = (expansionProgress * config.maxPetalSize) + 5;
+                let alpha = config.opacityMultiplier;
+
+                if (currentPetalSize < 0.5) continue;
+
+                // 3. Vortex Speed Math
+                // Inner layers spin 3x faster than outer layers
+                const speedMultiplier = 1 + (2 * (1 - expansionProgress));
+                
+                const isEven = i % 2 === 0;
+                const rotateDir = isEven ? 1 : -1;
+                layerAngles[i] += config.rotationSpeed * speedMultiplier * rotateDir;
+
+                // 4. COLOR (Fixed Spectrum)
+                // We divide 'i' by 'layerCount' to get a value from 0.0 to 1.0
+                // Then multiply by 360 to span the full rainbow.
+                const hue = (i / config.layerCount) * 360;
+                
+                ctx.fillStyle = `hsla(${hue}, 70%, 50%, ${alpha})`;
+
+                // 5. Draw
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(layerAngles[i]);
+
+                for (let j = 0; j < config.petalsPerLayer; j++) {
+                    const angle = (Math.PI * 2 * j) / config.petalsPerLayer;
+                    const x = Math.cos(angle) * currentRingRadius;
+                    const y = Math.sin(angle) * currentRingRadius;
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, currentPetalSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            time += 1;
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
